@@ -30,12 +30,12 @@
       },
       {
         "name": "login",
-        "signature": "<T extends \"apple\" | \"google\">(options: Extract<LoginOptions, { provider: T; }>) => Promise<{ provider: T; result: ProviderResponseMap[T]; }>",
+        "signature": "<T extends \"apple\" | \"google\" | \"facebook\">(options: Extract<LoginOptions, { provider: T; }>) => Promise<{ provider: T; result: ProviderResponseMap[T]; }>",
         "parameters": [
           {
             "name": "options",
             "docs": "",
-            "type": "Extract<{ provider: 'google'; options: GoogleLoginOptions; }, { provider: T; }> | Extract<{ provider: 'apple'; options: AppleProviderOptions; }, { provider: T; }>"
+            "type": "Extract<{ provider: 'facebook'; options: FacebookLoginOptions; }, { provider: T; }> | Extract<{ provider: 'google'; options: GoogleLoginOptions; }, { provider: T; }> | Extract<{ provider: 'apple'; options: AppleProviderOptions; }, { provider: T; }>"
           }
         ],
         "returns": "Promise<{ provider: T; result: ProviderResponseMap[T]; }>",
@@ -56,12 +56,12 @@
       },
       {
         "name": "logout",
-        "signature": "(options: { provider: 'apple' | 'google'; }) => Promise<void>",
+        "signature": "(options: { provider: 'apple' | 'google' | 'facebook'; }) => Promise<void>",
         "parameters": [
           {
             "name": "options",
             "docs": "",
-            "type": "{ provider: 'apple' | 'google'; }"
+            "type": "{ provider: 'apple' | 'google' | 'facebook'; }"
           }
         ],
         "returns": "Promise<void>",
@@ -147,15 +147,15 @@
       },
       {
         "name": "providerSpecificCall",
-        "signature": "<T extends never>(options: { call: T; options: ProviderSpecificCallOptionsMap[T]; }) => Promise<ProviderSpecificCallResponseMap[T]>",
+        "signature": "<T extends \"facebook#getProfile\">(options: { call: T; options: ProviderSpecificCallOptionsMap[T]; }) => Promise<ProviderSpecificCallResponseMap[T]>",
         "parameters": [
           {
             "name": "options",
             "docs": "",
-            "type": "{ call: T; options: never; }"
+            "type": "{ call: T; options: ProviderSpecificCallOptionsMap[T]; }"
           }
         ],
-        "returns": "Promise<never>",
+        "returns": "Promise<ProviderSpecificCallResponseMap[T]>",
         "tags": [
           {
             "name": "description",
@@ -164,10 +164,10 @@
         ],
         "docs": "Execute provider-specific calls",
         "complexTypes": [
-          "ProviderSpecificCall",
+          "ProviderSpecificCallResponseMap",
           "T",
-          "ProviderSpecificCallOptionsMap",
-          "ProviderSpecificCallResponseMap"
+          "ProviderSpecificCall",
+          "ProviderSpecificCallOptionsMap"
         ],
         "slug": "providerspecificcall"
       }
@@ -183,6 +183,13 @@
       "methods": [],
       "properties": [
         {
+          "name": "facebook",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "{ appId: string; clientToken: string; } | undefined"
+        },
+        {
           "name": "google",
           "tags": [],
           "docs": "",
@@ -194,13 +201,13 @@
           "tags": [],
           "docs": "",
           "complexTypes": [],
-          "type": "{ clientId?: string | undefined; redirectUrl?: string | undefined; useProperTokenExchange?: boolean | undefined; useBroadcastChannel?: boolean | undefined; } | undefined"
+          "type": "{ clientId?: string | undefined; redirectUrl?: string | undefined; } | undefined"
         }
       ]
     },
     {
-      "name": "GoogleLoginResponseOnline",
-      "slug": "googleloginresponseonline",
+      "name": "FacebookLoginResponse",
+      "slug": "facebookloginresponse",
       "docs": "",
       "tags": [],
       "methods": [],
@@ -226,14 +233,7 @@
           "tags": [],
           "docs": "",
           "complexTypes": [],
-          "type": "{ email: string | null; familyName: string | null; givenName: string | null; id: string | null; name: string | null; imageUrl: string | null; }"
-        },
-        {
-          "name": "responseType",
-          "tags": [],
-          "docs": "",
-          "complexTypes": [],
-          "type": "'online'"
+          "type": "{ userID: string; email: string | null; friendIDs: string[]; birthday: string | null; ageRange: { min?: number | undefined; max?: number | undefined; } | null; gender: string | null; location: { id: string; name: string; } | null; hometown: { id: string; name: string; } | null; profileURL: string | null; name: string | null; imageURL: string | null; }"
         }
       ]
     },
@@ -310,6 +310,45 @@
       ]
     },
     {
+      "name": "GoogleLoginResponseOnline",
+      "slug": "googleloginresponseonline",
+      "docs": "",
+      "tags": [],
+      "methods": [],
+      "properties": [
+        {
+          "name": "accessToken",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [
+            "AccessToken"
+          ],
+          "type": "AccessToken | null"
+        },
+        {
+          "name": "idToken",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "string | null"
+        },
+        {
+          "name": "profile",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "{ email: string | null; familyName: string | null; givenName: string | null; id: string | null; name: string | null; imageUrl: string | null; }"
+        },
+        {
+          "name": "responseType",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "'online'"
+        }
+      ]
+    },
+    {
       "name": "GoogleLoginResponseOffline",
       "slug": "googleloginresponseoffline",
       "docs": "",
@@ -341,13 +380,8 @@
       "properties": [
         {
           "name": "accessToken",
-          "tags": [
-            {
-              "text": "Content depends on `useProperTokenExchange` setting:\r\n- When `useProperTokenExchange: true`: Real access token from Apple (~1 hour validity)\r\n- When `useProperTokenExchange: false`: Contains authorization code as token (legacy mode)\r\nUse `idToken` for user authentication, `accessToken` for API calls when properly exchanged.",
-              "name": "description"
-            }
-          ],
-          "docs": "Access token from Apple",
+          "tags": [],
+          "docs": "",
           "complexTypes": [
             "AccessToken"
           ],
@@ -355,41 +389,64 @@
         },
         {
           "name": "idToken",
-          "tags": [
-            {
-              "text": "Always contains the JWT with user identity information including:\r\n- User ID (sub claim)\r\n- Email (if user granted permission)\r\n- Name components (if user granted permission)\r\n- Email verification status\r\nThis is the primary token for user authentication and should be verified on your backend.",
-              "name": "description"
-            }
-          ],
-          "docs": "Identity token (JWT) from Apple",
+          "tags": [],
+          "docs": "",
           "complexTypes": [],
           "type": "string | null"
         },
         {
           "name": "profile",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "{ user: string; email: string | null; givenName: string | null; familyName: string | null; }"
+        }
+      ]
+    },
+    {
+      "name": "FacebookLoginOptions",
+      "slug": "facebookloginoptions",
+      "docs": "",
+      "tags": [],
+      "methods": [],
+      "properties": [
+        {
+          "name": "permissions",
           "tags": [
             {
-              "text": "Basic user profile data extracted from the identity token and Apple response:\r\n- `user`: Apple's user identifier (sub claim from idToken)\r\n- `email`: User's email address (if permission granted)\r\n- `givenName`: User's first name (if permission granted)\r\n- `familyName`: User's last name (if permission granted)",
+              "text": "select permissions to login with",
               "name": "description"
             }
           ],
-          "docs": "User profile information",
+          "docs": "Permissions",
           "complexTypes": [],
-          "type": "{ user: string; email: string | null; givenName: string | null; familyName: string | null; }"
+          "type": "string[]"
         },
         {
-          "name": "authorizationCode",
+          "name": "limitedLogin",
           "tags": [
             {
-              "text": "Only present when `useProperTokenExchange` is `true`. This code should be exchanged\r\nfor proper access tokens on your backend using Apple's token endpoint. Use this for secure\r\nserver-side token validation and to obtain refresh tokens.",
+              "text": "use limited login for Facebook IOS",
               "name": "description"
             },
             {
-              "text": "https ://developer.apple.com/documentation/sign_in_with_apple/tokenresponse",
-              "name": "see"
+              "text": "false",
+              "name": "default"
             }
           ],
-          "docs": "Authorization code for proper token exchange (when useProperTokenExchange is enabled)",
+          "docs": "Is Limited Login",
+          "complexTypes": [],
+          "type": "boolean | undefined"
+        },
+        {
+          "name": "nonce",
+          "tags": [
+            {
+              "text": "A custom nonce to use for the login request",
+              "name": "description"
+            }
+          ],
+          "docs": "Nonce",
           "complexTypes": [],
           "type": "string | undefined"
         }
@@ -414,7 +471,7 @@
               "name": "see"
             }
           ],
-          "docs": "Specifies the scopes required for accessing Google APIs\r\nThe default is defined in the configuration.",
+          "docs": "Specifies the scopes required for accessing Google APIs\nThe default is defined in the configuration.",
           "complexTypes": [],
           "type": "string[] | undefined"
         },
@@ -477,38 +534,6 @@
           "docs": "Style",
           "complexTypes": [],
           "type": "'bottom' | 'standard' | undefined"
-        },
-        {
-          "name": "filterByAuthorizedAccounts",
-          "tags": [
-            {
-              "text": "Only show accounts that have previously been used to sign in to the app.\r\nThis option is only available for the 'bottom' style.\r\nNote: For Family Link supervised accounts, this should be set to false.",
-              "name": "description"
-            },
-            {
-              "text": "true",
-              "name": "default"
-            }
-          ],
-          "docs": "Filter by authorized accounts (Android only)",
-          "complexTypes": [],
-          "type": "boolean | undefined"
-        },
-        {
-          "name": "autoSelectEnabled",
-          "tags": [
-            {
-              "text": "Automatically select the account if only one Google account is available.\r\nThis option is only available for the 'bottom' style.",
-              "name": "description"
-            },
-            {
-              "text": "false",
-              "name": "default"
-            }
-          ],
-          "docs": "Auto select enabled (Android only)",
-          "complexTypes": [],
-          "type": "boolean | undefined"
         }
       ]
     },
@@ -527,7 +552,7 @@
               "name": "description"
             },
             {
-              "text": "[\"name\", \"email\"]\r\ndefault: [\"name\", \"email\"]",
+              "text": "[\"name\", \"email\"]\ndefault: [\"name\", \"email\"]",
               "name": "example"
             }
           ],
@@ -558,22 +583,6 @@
           "docs": "State",
           "complexTypes": [],
           "type": "string | undefined"
-        },
-        {
-          "name": "useBroadcastChannel",
-          "tags": [
-            {
-              "text": "When enabled, uses Broadcast Channel API for communication instead of URL redirects.\r\nOnly applicable on platforms that support Broadcast Channel (Android).",
-              "name": "description"
-            },
-            {
-              "text": "false",
-              "name": "default"
-            }
-          ],
-          "docs": "Use Broadcast Channel for authentication flow",
-          "complexTypes": [],
-          "type": "boolean | undefined"
         }
       ]
     },
@@ -594,7 +603,7 @@
           ],
           "docs": "Provider",
           "complexTypes": [],
-          "type": "'apple' | 'google'"
+          "type": "'apple' | 'google' | 'facebook'"
         }
       ]
     },
@@ -648,7 +657,44 @@
           ],
           "docs": "Provider",
           "complexTypes": [],
-          "type": "'apple' | 'google'"
+          "type": "'apple' | 'google' | 'facebook'"
+        }
+      ]
+    },
+    {
+      "name": "FacebookGetProfileResponse",
+      "slug": "facebookgetprofileresponse",
+      "docs": "",
+      "tags": [],
+      "methods": [],
+      "properties": [
+        {
+          "name": "profile",
+          "tags": [],
+          "docs": "Facebook profile data",
+          "complexTypes": [],
+          "type": "{ [key: string]: any; id: string | null; name: string | null; email: string | null; first_name: string | null; last_name: string | null; picture?: { data: { height: number | null; is_silhouette: boolean | null; url: string | null; width: number | null; }; } | null | undefined; }"
+        }
+      ]
+    },
+    {
+      "name": "FacebookGetProfileOptions",
+      "slug": "facebookgetprofileoptions",
+      "docs": "",
+      "tags": [],
+      "methods": [],
+      "properties": [
+        {
+          "name": "fields",
+          "tags": [
+            {
+              "text": "[\"id\", \"name\", \"email\", \"picture\"]",
+              "name": "example"
+            }
+          ],
+          "docs": "Fields to retrieve from Facebook profile",
+          "complexTypes": [],
+          "type": "string[] | undefined"
         }
       ]
     }
@@ -661,8 +707,9 @@
       "docs": "",
       "types": [
         {
-          "text": "{\r\n  google: GoogleLoginResponse;\r\n  apple: AppleProviderResponse;\r\n}",
+          "text": "{\n  facebook: FacebookLoginResponse;\n  google: GoogleLoginResponse;\n  apple: AppleProviderResponse;\n}",
           "complexTypes": [
+            "FacebookLoginResponse",
             "GoogleLoginResponse",
             "AppleProviderResponse"
           ]
@@ -694,13 +741,19 @@
       "docs": "",
       "types": [
         {
-          "text": "{\r\n      provider: 'google';\r\n      options: GoogleLoginOptions;\r\n    }",
+          "text": "{\n      provider: 'facebook';\n      options: FacebookLoginOptions;\n    }",
+          "complexTypes": [
+            "FacebookLoginOptions"
+          ]
+        },
+        {
+          "text": "{\n      provider: 'google';\n      options: GoogleLoginOptions;\n    }",
           "complexTypes": [
             "GoogleLoginOptions"
           ]
         },
         {
-          "text": "{\r\n      provider: 'apple';\r\n      options: AppleProviderOptions;\r\n    }",
+          "text": "{\n      provider: 'apple';\n      options: AppleProviderOptions;\n    }",
           "complexTypes": [
             "AppleProviderOptions"
           ]
@@ -722,12 +775,25 @@
       ]
     },
     {
+      "name": "ProviderSpecificCallResponseMap",
+      "slug": "providerspecificcallresponsemap",
+      "docs": "",
+      "types": [
+        {
+          "text": "{\n  'facebook#getProfile': FacebookGetProfileResponse;\n}",
+          "complexTypes": [
+            "FacebookGetProfileResponse"
+          ]
+        }
+      ]
+    },
+    {
       "name": "ProviderSpecificCall",
       "slug": "providerspecificcall",
       "docs": "",
       "types": [
         {
-          "text": "never",
+          "text": "'facebook#getProfile'",
           "complexTypes": []
         }
       ]
@@ -738,36 +804,9 @@
       "docs": "",
       "types": [
         {
-          "text": "Record<string, never>",
+          "text": "{\n  'facebook#getProfile': FacebookGetProfileOptions;\n}",
           "complexTypes": [
-            "Record"
-          ]
-        }
-      ]
-    },
-    {
-      "name": "Record",
-      "slug": "record",
-      "docs": "Construct a type with a set of properties K of type T",
-      "types": [
-        {
-          "text": "{\r\n    [P in K]: T;\r\n}",
-          "complexTypes": [
-            "K",
-            "T"
-          ]
-        }
-      ]
-    },
-    {
-      "name": "ProviderSpecificCallResponseMap",
-      "slug": "providerspecificcallresponsemap",
-      "docs": "",
-      "types": [
-        {
-          "text": "Record<string, never>",
-          "complexTypes": [
-            "Record"
+            "FacebookGetProfileOptions"
           ]
         }
       ]

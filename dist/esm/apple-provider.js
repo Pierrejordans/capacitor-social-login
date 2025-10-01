@@ -6,12 +6,10 @@ export class AppleSocialLogin extends BaseSocialLogin {
         this.redirectUrl = null;
         this.scriptLoaded = false;
         this.scriptUrl = 'https://appleid.cdn-apple.com/appleauth/static/jsapi/appleid/1/en_US/appleid.auth.js';
-        this.useProperTokenExchange = false;
     }
-    async initialize(clientId, redirectUrl, useProperTokenExchange = false) {
+    async initialize(clientId, redirectUrl) {
         this.clientId = clientId;
         this.redirectUrl = redirectUrl || null;
-        this.useProperTokenExchange = useProperTokenExchange;
         if (clientId) {
             await this.loadAppleScript();
         }
@@ -37,25 +35,18 @@ export class AppleSocialLogin extends BaseSocialLogin {
                 .signIn()
                 .then((res) => {
                 var _a, _b, _c, _d, _e;
-                let accessToken = null;
-                if (this.useProperTokenExchange) {
-                    // When using proper token exchange, the authorization code should be exchanged
-                    // for a proper access token on the backend. For now, we set accessToken to null
-                    // and provide the authorization code in a separate field for backend processing.
-                    accessToken = null;
-                }
-                else {
-                    // Legacy behavior: use authorization code as access token for backward compatibility
-                    accessToken = {
-                        token: res.authorization.code || '',
-                    };
-                }
-                const result = Object.assign({ profile: {
+                const result = {
+                    profile: {
                         user: res.user || '',
                         email: ((_a = res.user) === null || _a === void 0 ? void 0 : _a.email) || null,
                         givenName: ((_c = (_b = res.user) === null || _b === void 0 ? void 0 : _b.name) === null || _c === void 0 ? void 0 : _c.firstName) || null,
                         familyName: ((_e = (_d = res.user) === null || _d === void 0 ? void 0 : _d.name) === null || _e === void 0 ? void 0 : _e.lastName) || null,
-                    }, accessToken: accessToken, idToken: res.authorization.id_token || null }, (this.useProperTokenExchange && { authorizationCode: res.authorization.code }));
+                    },
+                    accessToken: {
+                        token: res.authorization.id_token || '',
+                    },
+                    idToken: res.authorization.code || null,
+                };
                 resolve({ provider: 'apple', result });
             })
                 .catch((error) => {

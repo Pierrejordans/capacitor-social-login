@@ -5,8 +5,7 @@ export declare class AppleSocialLogin extends BaseSocialLogin {
     private redirectUrl;
     private scriptLoaded;
     private scriptUrl;
-    private useProperTokenExchange;
-    initialize(clientId: string | null, redirectUrl: string | null | undefined, useProperTokenExchange?: boolean): Promise<void>;
+    initialize(clientId: string | null, redirectUrl: string | null | undefined): Promise<void>;
     login(options: AppleProviderOptions): Promise<LoginResult>;
     logout(): Promise<void>;
     isLoggedIn(): Promise<{

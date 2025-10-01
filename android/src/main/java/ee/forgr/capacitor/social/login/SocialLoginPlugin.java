@@ -43,16 +43,11 @@ public class SocialLoginPlugin extends Plugin {
                 return;
             }
 
-            boolean useProperTokenExchange = apple.has("useProperTokenExchange") ? apple.getBool("useProperTokenExchange") : false;
-            boolean useBroadcastChannel = apple.has("useBroadcastChannel") ? apple.getBool("useBroadcastChannel") : false;
-
             AppleProvider appleProvider = new AppleProvider(
                 androidAppleRedirect,
                 androidAppleClientId,
                 this.getActivity(),
-                this.getContext(),
-                useProperTokenExchange,
-                useBroadcastChannel
+                this.getContext()
             );
 
             appleProvider.initialize();
@@ -85,6 +80,7 @@ public class SocialLoginPlugin extends Plugin {
             this.socialProviderHashMap.put("google", googleProvider);
         }
 
+        // Facebook provider removed to comply with Apple App Store requirements
 
         call.resolve();
     }
@@ -180,8 +176,11 @@ public class SocialLoginPlugin extends Plugin {
         }
 
         switch (customCall) {
+            case "facebook#getProfile":
+                call.reject("Facebook provider not supported");
+                break;
             default:
-                call.reject("Invalid call. No provider-specific calls supported");
+                call.reject("Invalid call. Facebook provider not supported");
         }
     }
 
@@ -217,6 +216,7 @@ public class SocialLoginPlugin extends Plugin {
 
         Log.d(LOG_TAG, "SocialLoginPlugin.handleOnActivityResult called");
 
+        // Facebook provider removed to comply with Apple App Store requirements
 
         // Handle other providers' activity results if needed
         Log.d(LOG_TAG, "Activity result not handled by any provider");

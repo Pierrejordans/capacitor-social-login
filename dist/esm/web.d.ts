@@ -4,6 +4,7 @@ export declare class SocialLoginWeb extends WebPlugin implements SocialLoginPlug
     private static readonly OAUTH_STATE_KEY;
     private googleProvider;
     private appleProvider;
+    private facebookProvider;
     constructor();
     private handleOAuthRedirect;
     initialize(options: InitializeOptions): Promise<void>;
@@ -14,7 +15,7 @@ export declare class SocialLoginWeb extends WebPlugin implements SocialLoginPlug
         result: ProviderResponseMap[T];
     }>;
     logout(options: {
-        provider: 'apple' | 'google';
+        provider: 'apple' | 'google' | 'facebook';
     }): Promise<void>;
     isLoggedIn(options: isLoggedInOptions): Promise<{
         isLoggedIn: boolean;

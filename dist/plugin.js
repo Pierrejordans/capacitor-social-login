@@ -42,12 +42,10 @@ var capacitorCapacitorUpdater = (function (exports, core) {
             this.redirectUrl = null;
             this.scriptLoaded = false;
             this.scriptUrl = 'https://appleid.cdn-apple.com/appleauth/static/jsapi/appleid/1/en_US/appleid.auth.js';
-            this.useProperTokenExchange = false;
         }
-        async initialize(clientId, redirectUrl, useProperTokenExchange = false) {
+        async initialize(clientId, redirectUrl) {
             this.clientId = clientId;
             this.redirectUrl = redirectUrl || null;
-            this.useProperTokenExchange = useProperTokenExchange;
             if (clientId) {
                 await this.loadAppleScript();
             }
@@ -73,25 +71,18 @@ var capacitorCapacitorUpdater = (function (exports, core) {
                     .signIn()
                     .then((res) => {
                     var _a, _b, _c, _d, _e;
-                    let accessToken = null;
-                    if (this.useProperTokenExchange) {
-                        // When using proper token exchange, the authorization code should be exchanged
-                        // for a proper access token on the backend. For now, we set accessToken to null
-                        // and provide the authorization code in a separate field for backend processing.
-                        accessToken = null;
-                    }
-                    else {
-                        // Legacy behavior: use authorization code as access token for backward compatibility
-                        accessToken = {
-                            token: res.authorization.code || '',
-                        };
-                    }
-                    const result = Object.assign({ profile: {
+                    const result = {
+                        profile: {
                             user: res.user || '',
                             email: ((_a = res.user) === null || _a === void 0 ? void 0 : _a.email) || null,
                             givenName: ((_c = (_b = res.user) === null || _b === void 0 ? void 0 : _b.name) === null || _c === void 0 ? void 0 : _c.firstName) || null,
                             familyName: ((_e = (_d = res.user) === null || _d === void 0 ? void 0 : _d.name) === null || _e === void 0 ? void 0 : _e.lastName) || null,
-                        }, accessToken: accessToken, idToken: res.authorization.id_token || null }, (this.useProperTokenExchange && { authorizationCode: res.authorization.code }));
+                        },
+                        accessToken: {
+                            token: res.authorization.id_token || '',
+                        },
+                        idToken: res.authorization.code || null,
+                    };
                     resolve({ provider: 'apple', result });
                 })
                     .catch((error) => {
@@ -121,6 +112,99 @@ var capacitorCapacitorUpdater = (function (exports, core) {
             if (this.scriptLoaded)
                 return;
             return this.loadScript(this.scriptUrl).then(() => {
+                this.scriptLoaded = true;
+            });
+        }
+    }
+
+    class FacebookSocialLogin extends BaseSocialLogin {
+        constructor() {
+            super(...arguments);
+            this.appId = null;
+            this.scriptLoaded = false;
+        }
+        async initialize(appId) {
+            this.appId = appId;
+            if (appId) {
+                await this.loadFacebookScript();
+                FB.init({
+                    appId: this.appId,
+                    version: 'v17.0',
+                    xfbml: true,
+                    cookie: true,
+                });
+            }
+        }
+        async login(options) {
+            if (!this.appId) {
+                throw new Error('Facebook App ID not set. Call initialize() first.');
+            }
+            return new Promise((resolve, reject) => {
+                FB.login((response) => {
+                    if (response.status === 'connected') {
+                        FB.api('/me', { fields: 'id,name,email,picture' }, (userInfo) => {
+                            var _a, _b;
+                            const result = {
+                                accessToken: {
+                                    token: response.authResponse.accessToken,
+                                    userId: response.authResponse.userID,
+                                },
+                                profile: {
+                                    userID: userInfo.id,
+                                    name: userInfo.name,
+                                    email: userInfo.email || null,
+                                    imageURL: ((_b = (_a = userInfo.picture) === null || _a === void 0 ? void 0 : _a.data) === null || _b === void 0 ? void 0 : _b.url) || null,
+                                    friendIDs: [],
+                                    birthday: null,
+                                    ageRange: null,
+                                    gender: null,
+                                    location: null,
+                                    hometown: null,
+                                    profileURL: null,
+                                },
+                                idToken: null,
+                            };
+                            resolve({ provider: 'facebook', result });
+                        });
+                    }
+                    else {
+                        reject(new Error('Facebook login failed'));
+                    }
+                }, { scope: options.permissions.join(',') });
+            });
+        }
+        async logout() {
+            return new Promise((resolve) => {
+                FB.logout(() => resolve());
+            });
+        }
+        async isLoggedIn() {
+            return new Promise((resolve) => {
+                FB.getLoginStatus((response) => {
+                    resolve({ isLoggedIn: response.status === 'connected' });
+                });
+            });
+        }
+        async getAuthorizationCode() {
+            return new Promise((resolve, reject) => {
+                FB.getLoginStatus((response) => {
+                    var _a;
+                    if (response.status === 'connected') {
+                        resolve({ jwt: ((_a = response.authResponse) === null || _a === void 0 ? void 0 : _a.accessToken) || '' });
+                    }
+                    else {
+                        reject(new Error('No Facebook authorization code available'));
+                    }
+                });
+            });
+        }
+        async refresh(options) {
+            await this.login(options);
+        }
+        async loadFacebookScript() {
+            if (this.scriptLoaded)
+                return;
+            return this.loadScript('https://connect.facebook.net/en_US/sdk.js').then(() => {
                 this.scriptLoaded = true;
             });
         }
@@ -487,6 +571,7 @@ var capacitorCapacitorUpdater = (function (exports, core) {
             super();
             this.googleProvider = new GoogleSocialLogin();
             this.appleProvider = new AppleSocialLogin();
+            this.facebookProvider = new FacebookSocialLogin();
             // Set up listener for OAuth redirects if we have a pending OAuth flow
             if (localStorage.getItem(SocialLoginWeb.OAUTH_STATE_KEY)) {
                 console.log('OAUTH_STATE_KEY found');
@@ -502,13 +587,16 @@ var capacitorCapacitorUpdater = (function (exports, core) {
             return this.googleProvider.handleOAuthRedirect(url);
         }
         async initialize(options) {
-            var _a, _b;
+            var _a, _b, _c;
             const initPromises = [];
             if ((_a = options.google) === null || _a === void 0 ? void 0 : _a.webClientId) {
                 initPromises.push(this.googleProvider.initialize(options.google.webClientId, options.google.mode, options.google.hostedDomain, options.google.redirectUrl));
             }
             if ((_b = options.apple) === null || _b === void 0 ? void 0 : _b.clientId) {
-                initPromises.push(this.appleProvider.initialize(options.apple.clientId, options.apple.redirectUrl, options.apple.useProperTokenExchange));
+                initPromises.push(this.appleProvider.initialize(options.apple.clientId, options.apple.redirectUrl));
+            }
+            if ((_c = options.facebook) === null || _c === void 0 ? void 0 : _c.appId) {
+                initPromises.push(this.facebookProvider.initialize(options.facebook.appId));
             }
             await Promise.all(initPromises);
         }
@@ -518,6 +606,8 @@ var capacitorCapacitorUpdater = (function (exports, core) {
                     return this.googleProvider.login(options.options);
                 case 'apple':
                     return this.appleProvider.login(options.options);
+                case 'facebook':
+                    return this.facebookProvider.login(options.options);
                 default:
                     throw new Error(`Login for ${options.provider} is not implemented on web`);
             }
@@ -528,6 +618,8 @@ var capacitorCapacitorUpdater = (function (exports, core) {
                     return this.googleProvider.logout();
                 case 'apple':
                     return this.appleProvider.logout();
+                case 'facebook':
+                    return this.facebookProvider.logout();
                 default:
                     throw new Error(`Logout for ${options.provider} is not implemented`);
             }
@@ -538,6 +630,8 @@ var capacitorCapacitorUpdater = (function (exports, core) {
                     return this.googleProvider.isLoggedIn();
                 case 'apple':
                     return this.appleProvider.isLoggedIn();
+                case 'facebook':
+                    return this.facebookProvider.isLoggedIn();
                 default:
                     throw new Error(`isLoggedIn for ${options.provider} is not implemented`);
             }
@@ -548,6 +642,8 @@ var capacitorCapacitorUpdater = (function (exports, core) {
                     return this.googleProvider.getAuthorizationCode();
                 case 'apple':
                     return this.appleProvider.getAuthorizationCode();
+                case 'facebook':
+                    return this.facebookProvider.getAuthorizationCode();
                 default:
                     throw new Error(`getAuthorizationCode for ${options.provider} is not implemented`);
             }
@@ -558,6 +654,8 @@ var capacitorCapacitorUpdater = (function (exports, core) {
                     return this.googleProvider.refresh();
                 case 'apple':
                     return this.appleProvider.refresh();
+                case 'facebook':
+                    return this.facebookProvider.refresh(options.options);
                 default:
                     throw new Error(`Refresh for ${options.provider} is not implemented`);
             }
