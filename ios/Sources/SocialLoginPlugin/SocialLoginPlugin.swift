@@ -25,6 +25,7 @@ public class SocialLoginPlugin: CAPPlugin, CAPBridgedPlugin {
     @objc func initialize(_ call: CAPPluginCall) {
         var initialized = false
 
+        // Facebook provider removed to comply with Apple App Store requirements
 
         if let googleSettings = call.getObject("google") {
             let iOSClientId = googleSettings["iOSClientId"] as? String
@@ -52,10 +53,13 @@ public class SocialLoginPlugin: CAPPlugin, CAPBridgedPlugin {
         }
 
         if let appleSettings = call.getObject("apple") {
-            let redirectUrl = appleSettings["redirectUrl"] as? String
-            let useProperTokenExchange = appleSettings["useProperTokenExchange"] as? Bool ?? false
-            apple.initialize(redirectUrl: redirectUrl, useProperTokenExchange: useProperTokenExchange)
-            initialized = true
+            if let redirectUrl = appleSettings["redirectUrl"] as? String {
+                apple.initialize(redirectUrl: redirectUrl)
+                initialized = true
+            } else {
+                apple.initialize()
+                initialized = true
+            }
         }
 
         if initialized {
@@ -126,6 +130,9 @@ public class SocialLoginPlugin: CAPPlugin, CAPBridgedPlugin {
                 }
             }
         }
+        case "facebook": do {
+            call.reject("Facebook provider not supported")
+        }
         default:
             call.reject("Invalid provider")
         }
@@ -139,6 +146,8 @@ public class SocialLoginPlugin: CAPPlugin, CAPBridgedPlugin {
         }
 
         switch provider {
+        case "facebook":
+            call.reject("Facebook provider not supported")
         case "google":
             google.login(payload: payload) { (result: Result<GoogleLoginResponse, Error>) in
                 self.handleLoginResult(result, call: call)
@@ -158,8 +167,10 @@ public class SocialLoginPlugin: CAPPlugin, CAPBridgedPlugin {
             return
         }
         switch customCall {
+        case "facebook#getProfile":
+            call.reject("Facebook provider not supported")
         default:
-            call.reject("Invalid call. No provider-specific calls supported")
+            call.reject("Invalid call. Facebook provider not supported")
         }
     }
 
@@ -170,6 +181,8 @@ public class SocialLoginPlugin: CAPPlugin, CAPBridgedPlugin {
         }
 
         switch provider {
+        case "facebook":
+            call.reject("Facebook provider not supported")
         case "google":
             google.logout { result in
                 self.handleLogoutResult(result, call: call)
@@ -190,6 +203,8 @@ public class SocialLoginPlugin: CAPPlugin, CAPBridgedPlugin {
         }
 
         switch provider {
+        case "facebook":
+            call.reject("Facebook provider not supported")
         case "google":
             google.refresh { result in
                 self.handleRefreshResult(result, call: call)
@@ -312,6 +327,9 @@ public class SocialLoginPlugin: CAPPlugin, CAPBridgedPlugin {
                     "provider": "google",
                     "result": googleResult
                 ])
+            } else if let _ = response as? Any {
+                // Facebook provider removed - this case should not occur
+                call.reject("Facebook provider not supported")
             } else {
                 call.reject("Unsupported provider response")
             }

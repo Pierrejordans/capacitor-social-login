@@ -8,7 +8,6 @@ struct AppleProviderResponse: Codable {
     let accessToken: AccessTokenApple?
     let profile: AppleProfile
     let idToken: String?
-    let authorizationCode: String?
 }
 
 struct AppleProfile: Codable {
@@ -110,13 +109,11 @@ class AppleProvider: NSObject, ASAuthorizationControllerDelegate, ASAuthorizatio
     private let SHARED_PREFERENCE_NAME = "AppleProviderSharedPrefs_0eda2642"
     private var redirectUrl = ""
     private let USER_INFO_KEY = "AppleUserInfo"
-    private var useProperTokenExchange = false
 
-    func initialize(redirectUrl: String? = nil, useProperTokenExchange: Bool = false) {
+    func initialize(redirectUrl: String? = nil) {
         if let redirectUrl = redirectUrl {
             self.redirectUrl = redirectUrl
         }
-        self.useProperTokenExchange = useProperTokenExchange
 
         do {
             try retrieveState()
@@ -252,27 +249,16 @@ class AppleProvider: NSObject, ASAuthorizationControllerDelegate, ASAuthorizatio
             let finalFamilyName = fullName?.familyName ?? savedName?.familyName
 
             // Create proper access token and decode JWT
-            let authorizationCode = String(data: appleIDCredential.authorizationCode ?? Data(), encoding: .utf8) ?? ""
-            let idToken = String(data: appleIDCredential.identityToken ?? Data(), encoding: .utf8) ?? ""
-
-            var accessToken: AccessTokenApple? = nil
-
-            if useProperTokenExchange {
-                // When using proper token exchange, set accessToken to nil
-                // The authorization code should be exchanged for proper tokens on the backend
-                accessToken = nil
-            } else {
-                // Legacy behavior: use authorization code as access token for backward compatibility
-                accessToken = AccessTokenApple(
-                    token: authorizationCode,
-                    expiresIn: 3600,
-                    refreshToken: nil
-                )
-            }
+            let tokenString = String(data: appleIDCredential.identityToken ?? Data(), encoding: .utf8) ?? ""
+            let accessToken = AccessTokenApple(
+                token: tokenString,
+                expiresIn: 3600,
+                refreshToken: nil
+            )
 
             // Decode JWT to get email
             var decodedEmail = email
-            if let jwt = idToken.split(separator: ".").dropFirst().first {
+            if let jwt = tokenString.split(separator: ".").dropFirst().first {
                 let remainder = jwt.count % 4
                 var base64String = String(jwt)
                 if remainder > 0 {
@@ -294,8 +280,7 @@ class AppleProvider: NSObject, ASAuthorizationControllerDelegate, ASAuthorizatio
                     givenName: finalGivenName,
                     familyName: finalFamilyName
                 ),
-                idToken: idToken,
-                authorizationCode: useProperTokenExchange ? authorizationCode : nil
+                idToken: String(data: appleIDCredential.authorizationCode ?? Data(), encoding: .utf8) ?? ""
             )
 
             if !self.redirectUrl.isEmpty {
@@ -422,8 +407,7 @@ class AppleProvider: NSObject, ASAuthorizationControllerDelegate, ASAuthorizatio
                                             givenName: nil,
                                             familyName: nil
                                         ),
-                                        idToken: idToken,
-                                        authorizationCode: nil
+                                        idToken: idToken
                                     )
                                     completion(.success(appleResponse))
                                     return
@@ -446,8 +430,7 @@ class AppleProvider: NSObject, ASAuthorizationControllerDelegate, ASAuthorizatio
                                         givenName: firstName,
                                         familyName: lastName
                                     ),
-                                    idToken: identityToken,
-                                    authorizationCode: nil
+                                    idToken: identityToken
                                 )
 
                                 do {
@@ -550,8 +533,7 @@ class AppleProvider: NSObject, ASAuthorizationControllerDelegate, ASAuthorizatio
                                 givenName: nil,
                                 familyName: nil
                             ),
-                            idToken: idToken,
-                            authorizationCode: nil
+                            idToken: idToken
                         )
 
                         // Log the tokens (replace with your logging mechanism)
